@@ -1,0 +1,227 @@
+﻿<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>智能课堂 —— 微博ajax接口测试 - www.zhinengshe.com</title>
+<link href="style/weibo.css" rel="stylesheet" type="text/css" />
+<script src="ajax.js"></script>
+<script src="cookie.js"></script>
+<script>
+function toDou(iNum){
+	return iNum<10?'0'+iNum:''+iNum;
+};
+window.onload=function(){
+	var oT = document.getElementById('t1');
+	var oBtn = document.getElementById('btn1');
+	var oReply = document.getElementById('reply_box');
+	var oPage = document.getElementById('page_box');
+	var URL = 'weibo.php';
+	var aA = oPage.getElementsByTagName('a');
+	var iNow = 0;
+	oBtn.onclick=function(){
+		if(!oT.value)return;
+		ajax({
+			url:URL,
+			data:{
+				act:'add',
+				content:oT.value
+			},
+			success:function(str){
+				var json = eval('('+str+')');
+				if(!json.error){
+					var oDiv = createReply(oT.value,json.time,0,0,json.id);
+					if(oReply.children.length){
+						oReply.insertBefore(oDiv,oReply.children[0]);
+					}else{
+						oReply.appendChild(oDiv);
+					}
+					if(oReply.children.length==7){
+						oReply.removeChild(oReply.children[oReply.children.length-1]);
+					}
+					oT.value='';
+					createPage();
+				}
+				
+			},
+			error:function(){
+				alert('获取失败');
+			}
+		});
+	};
+	function createReply(content,time,acc,ref,id){
+		var oDate = new Date();
+		oDate.setTime(time*1000);
+		var oDiv = document.createElement('div');
+		oDiv.className='reply';
+		oDiv.innerHTML=' <p class="replyContent">'+content+'</p>'+
+                '<p class="operation">'+
+                    '<span class="replyTime">'+oDate.getFullYear()+'-'+toDou(oDate.getMonth()+1)+'-'+toDou(oDate.getDate())+' '+toDou(oDate.getHours())+':'+toDou(oDate.getMinutes())+':'+toDou(oDate.getSeconds())+'</span>'+
+                    '<span class="handle">'+
+                    	'<a href="javascript:;" class="top">'+acc+'</a>'+
+                        '<a href="javascript:;" class="down_icon">'+ref+'</a>'+
+                        '<a href="javascript:;" class="cut">删除</a>'+
+                    '</span>'+
+                '</p>';
+        var aA = oDiv.getElementsByTagName('a');
+        aA[0].onclick=function(){
+        	if(getCookie('acc'+id)){
+        		alert('哥们只能顶一次');
+        		return;
+        	}
+        	ajax({
+        		url:URL,
+        		data:{
+        			'act':'acc',
+        			'id':id
+        		},
+        		success:function(str){
+        			var json = eval('('+str+')');
+        			if(!json.error){
+        				addCookie('acc'+id,1,1);
+        				aA[0].innerHTML=parseInt(aA[0].innerHTML)+1;
+        			}
+        		},
+        		error:function(){
+        			alert('获取数据失败');
+        		}
+        	});
+        };
+         aA[1].onclick=function(){
+        	if(getCookie('ref'+id)){
+        		alert('哥们只能顶一次');
+        		return;
+        	}
+        	ajax({
+        		url:URL,
+        		data:{
+        			'act':'ref',
+        			'id':id
+        		},
+        		success:function(str){
+        			var json = eval('('+str+')');
+        			if(!json.error){
+        				addCookie('ref'+id,1,1);
+        				aA[1].innerHTML=parseInt(aA[1].innerHTML)+1;
+        			}
+        		},
+        		error:function(){
+        			alert('获取数据失败');
+        		}
+        	});
+        };
+        aA[2].onclick=function(){
+        	ajax({
+        		url:URL,
+        		data:{
+        			'act':'del',
+        			'id':id
+        		},
+        		success:function(str){
+        			var json = eval('('+str+')');
+        			if(!json.error){
+        				getPage(iNow);
+						createPage();	
+        			}	
+        		},
+        		error:function(){
+        			alert('获取数据失败');
+        		}
+        	});
+        };
+        return oDiv;
+	}
+	function createPage(){
+		oPage.innerHTML='';
+		ajax({
+			url:URL,
+			data:{
+				act:'get_page_count'
+			},
+			success:function(str){
+				var json = eval('('+str+')');
+				if(json.count){
+					oPage.innerHTML='';
+					for(var i=0;i<json.count;i++){
+						var oA = document.createElement('a');
+						oA.href='javascript:;';
+						oA.innerHTML=i+1;
+						oA.onclick=function(){
+							for(var i=0;i<aA.length;i++){
+								aA[i].className='';
+							};
+							this.className='active';
+							iNow = this.innerHTML;
+							getPage(iNow);
+						};
+						oPage.appendChild(oA);
+					};
+				}
+				
+			},	
+			error:function(){
+				alert('获取数据失败');
+			}
+		});
+	}
+	getPage(1);
+	createPage();
+	function getPage(n){
+		oReply.innerHTML='';
+		ajax({
+			url:URL,
+			data:{
+				'act':'get',
+				'page':n
+			},
+			success:function(str){
+				var arr = eval('('+str+')');
+				if(arr.length){
+					for(var i=0;i<arr.length;i++){
+						var oDiv = createReply(arr[i].content,arr[i].time,arr[i].acc,arr[i].ref,arr[i].id);
+						oReply.appendChild(oDiv);
+					}
+				}
+			},
+			error:function(){
+				alert('获取数据失败');
+			}
+		});
+	}
+};
+</script>
+</head>
+
+<body>
+<div class="znsArea">
+<!--留言-->
+     <div class="takeComment">
+        <textarea name="textarea" class="takeTextField" id="t1"></textarea>
+        <div class="takeSbmComment">
+            <input type="button" class="inputs" value="" id="btn1" />
+            <span>(可按 Enter 回复)</span>
+        </div>
+    </div>
+<!--已留-->
+    <div class="commentOn">
+        <div class="messList" id="reply_box">
+        	<!--<div class="reply">
+                <p class="replyContent">卫士，新款卫士将推出总共14种车身式样。其中， XS旅行款车型售价为32295英镑(约33.6万元)。</p>
+                <p class="operation">
+                    <span class="replyTime">2011-09-08 16:37:60</span>
+                    <span class="handle">
+                    	<a href="javascript:;" class="top">0</a>
+                        <a href="javascript:;" class="down_icon">0</a>
+                        <a href="javascript:;" class="cut">删除</a>
+                    </span>
+                </p>
+            </div>-->
+        </div>
+        <div class="page" id="page_box">
+        	<!--<a href="javascript:;" class="active">1</a>
+        	<a href="javascript:;">2</a>
+        	<a href="javascript:;">3</a>-->
+        </div>
+    </div>
+</div>
+</body>
+</html>
